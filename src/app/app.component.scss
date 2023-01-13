@@ -1,0 +1,35 @@
+.container{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    justify-content: center;
+
+    .glasses{
+        width: 310px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-evenly;
+        flex-wrap: wrap;
+
+        .glass{
+            margin: 20px 5px;
+            width: 30px;
+            height: 130px;
+            border: 2px solid rgb(207, 207, 207);
+            border-radius: 0 0 15px 15px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+
+
+            .liquid{
+                width: 100%;
+                height: 23%;
+            }
+
+        }
+    }
+
+}
