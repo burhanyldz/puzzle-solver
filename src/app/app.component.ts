@@ -36,18 +36,30 @@ export class AppComponent {
     { liquids: [] },
   ]
 
+  solution = [];
+
   solvingGlasses: any = [];
   solving = false;
   initialMove = { possibleMoves: [] }
-  moveNestedIndexes = [0];
+  moveNestedIndexes: any = [0];
 
   numberOfMoves = 0;
   lastMoves: any = [];
   undoWorked = false;
 
-  deadEnds:any = []
+  deadEnds: any = []
+
+  solved = false;
+  checking = false;
+  checkingIndex = 0;
+  checkingFinished = false;
+  checkingFromGlass = 0;
+  checkingToGlass = 0;
+  waitingForCheckingMove = false;
 
   constructor() {
+    this.solvingGlasses = JSON.parse(JSON.stringify(this.glasses));
+
   }
 
   solvePuzzle() {
@@ -63,13 +75,27 @@ export class AppComponent {
     if (this.solving) {
       this.numberOfMoves++;
       this.performNextMove();
-      
+
       // wait 1 second before doing the next move
-      setTimeout(() => {
+      let timeout = setTimeout(() => {
+        if (this.checkIfSolved()) {
+          clearTimeout(timeout);
+          this.solvedPuzzle();
+          return;
+        }
         this.doNextMove();
-      }, 200);
+      }, 0);
 
     }
+  }
+
+  solvedPuzzle() {
+    this.solving = false;
+    console.log("solved puzzle");
+    console.log(this.moveNestedIndexes)
+    this.solution = this.moveNestedIndexes;
+    this.solution.shift();
+    this.solved = true;
   }
 
   stopSolving() {
@@ -80,11 +106,41 @@ export class AppComponent {
     this.numberOfMoves = 0;
     this.lastMoves = [];
     this.deadEnds = []
+    this.solved = false;
+    this.checking = false;
+
+  }
+
+
+  checkIfSolved() {
+    let solved = true;
+    const allEqual = (arr: any) => arr.every((v: any) => v === arr[0]);
+
+    for (let i = 0; i < this.solvingGlasses.length; i++) {
+      const glass = this.solvingGlasses[i];
+      if (glass.liquids.length > 0) {
+        if (glass.liquids.length == 4) {
+          if (allEqual(glass.liquids)) {
+            continue;
+          } else {
+            solved = false;
+            break;
+          }
+        } else {
+          solved = false;
+          break;
+        }
+      }
+    }
+
+    return solved;
 
   }
 
   determinePossibleMoves(): any {
     let possibleMoves = [];
+    const allEqual = (arr: any) => arr.every((v: any) => v === arr[0]);
+
     for (let i = 0; i < this.solvingGlasses.length; i++) {
       for (let j = 0; j < this.solvingGlasses.length; j++) {
         if (i != j) {
@@ -93,6 +149,16 @@ export class AppComponent {
           if (fromGlass.liquids.length > 0 && toGlass.liquids.length < 4) {
             // if the first liquid in the fromGlass is the same as the first liquid in the toGlass or the toGlass is empty
             if (fromGlass.liquids[0] == toGlass.liquids[0] || toGlass.liquids.length == 0) {
+              if (fromGlass.liquids.length > 1 && fromGlass.liquids[0] == fromGlass.liquids[1] && toGlass.liquids.length > 2) {
+                continue;
+              }
+              if (fromGlass.liquids.length > 2 && fromGlass.liquids[0] == fromGlass.liquids[1] && fromGlass.liquids[1] == fromGlass.liquids[2] && toGlass.liquids.length > 1) {
+                continue;
+              }
+              if (fromGlass.liquids.length == 4 && allEqual(fromGlass.liquids)) {
+                continue;
+              }
+
               possibleMoves.push({ fromGlass: i, toGlass: j, possibleMoves: [] });
             }
           }
@@ -119,7 +185,6 @@ export class AppComponent {
   getFirstMoveInLine(): any {
     let moveToWrite: any = this.getMoveToWrite();
     console.log(this.moveNestedIndexes.join("."))
-    console.log("moveToWrite ", moveToWrite.possibleMoves.length);
 
     let nextMove = null;
 
@@ -127,9 +192,9 @@ export class AppComponent {
       const move = moveToWrite.possibleMoves[moveIndex];
 
       // if the move is already in the dead ends list, skip it
-      if (this.deadEnds.includes(this.moveNestedIndexes.join(".")+ "." + moveIndex)) {
+      if (this.deadEnds.includes(this.moveNestedIndexes.join(".") + "." + moveIndex)) {
         continue;
-      }else{
+      } else {
         nextMove = { moveIndex: moveIndex, move: move };
         break;
       }
@@ -140,13 +205,10 @@ export class AppComponent {
 
   markCurrentMoveAsDeadEnd() {
     this.deadEnds.push(this.moveNestedIndexes.join("."));
-    console.log("this.deadEnds ", this.deadEnds);
     this.moveNestedIndexes.pop();
     this.undoLastMove();
-    this.deadEnds.push(this.moveNestedIndexes.join("."));
-    this.moveNestedIndexes.pop();
 
- }
+  }
 
   performNextMove() {
     let nextMove = this.getFirstMoveInLine();
@@ -169,21 +231,118 @@ export class AppComponent {
       toGlass.liquids.unshift(liquid);
       this.moveNestedIndexes.push(nextMove.moveIndex);
       this.lastMoves.push(nextMove);
-      
+
     }
     this.determinePossibleMoves();
   }
 
-    undoLastMove() {
-      console.log("undoLastMove ");
-      if (this.lastMoves.length > 0) {
-        let fromGlass = this.solvingGlasses[this.lastMoves[this.lastMoves.length - 1].move.fromGlass];
-        let toGlass = this.solvingGlasses[this.lastMoves[this.lastMoves.length - 1].move.toGlass];
-        let liquid = toGlass.liquids.shift();
-        fromGlass.liquids.unshift(liquid);
+  undoLastMove() {
+    if (this.lastMoves.length > 0) {
+      let fromGlass = this.solvingGlasses[this.lastMoves[this.lastMoves.length - 1].move.fromGlass];
+      let toGlass = this.solvingGlasses[this.lastMoves[this.lastMoves.length - 1].move.toGlass];
+      let liquid = toGlass.liquids.shift();
+      fromGlass.liquids.unshift(liquid);
 
-        this.lastMoves.pop();
+      this.lastMoves.pop();
 
-      }
     }
   }
+
+  getPossibleMoves() {
+    let possibleMoves = [];
+    const allEqual = (arr: any) => arr.every((v: any) => v === arr[0]);
+    for (let i = 0; i < this.solvingGlasses.length; i++) {
+      for (let j = 0; j < this.solvingGlasses.length; j++) {
+        if (i != j) {
+          let fromGlass = this.solvingGlasses[i];
+          let toGlass = this.solvingGlasses[j];
+          if (fromGlass.liquids.length > 0 && toGlass.liquids.length < 4) {
+            // if the first liquid in the fromGlass is the same as the first liquid in the toGlass or the toGlass is empty
+            if (fromGlass.liquids[0] == toGlass.liquids[0] || toGlass.liquids.length == 0) {
+              if (fromGlass.liquids.length > 1 && fromGlass.liquids[0] == fromGlass.liquids[1] && toGlass.liquids.length > 2) {
+                continue;
+              }
+              if (fromGlass.liquids.length > 2 && fromGlass.liquids[0] == fromGlass.liquids[1] && fromGlass.liquids[1] == fromGlass.liquids[2] && toGlass.liquids.length > 1) {
+                continue;
+              }
+              if (fromGlass.liquids.length == 4 && allEqual(fromGlass.liquids)) {
+                continue;
+              }
+
+              possibleMoves.push({ fromGlass: i, toGlass: j, possibleMoves: [] });
+            }
+          }
+        }
+      }
+    }
+
+    return possibleMoves;
+  }
+
+  resetChecking() {
+    this.solvingGlasses = JSON.parse(JSON.stringify(this.glasses));
+    this.checkingIndex = 0;
+    this.checkingFinished = false;
+  }
+
+  checkSolution() {
+    this.checking = true;
+    this.solvingGlasses = JSON.parse(JSON.stringify(this.glasses));
+    this.checkingIndex = 0;
+
+    this.solution.forEach(element => {
+      this.doNextCheckingMove();
+    });
+
+  }
+
+  doNextCheckingMove() {
+    let possibleMoves: any = []
+    possibleMoves = this.getPossibleMoves();
+    console.log("possibleMoves ", possibleMoves);
+    const solutionIndex = this.solution[this.checkingIndex];
+    console.log("solutionIndex ", solutionIndex);
+    this.checkingFromGlass = possibleMoves[solutionIndex].fromGlass
+    this.checkingToGlass = possibleMoves[solutionIndex].toGlass
+    this.waitingForCheckingMove = true;
+    this.performCheckingMove();
+  }
+
+  performCheckingMove() {
+    let liquid = this.solvingGlasses[this.checkingFromGlass].liquids.shift();
+    this.solvingGlasses[this.checkingToGlass].liquids.unshift(liquid);
+    this.checkingIndex++;
+    this.waitingForCheckingMove = false;
+    if (this.checkingIndex == this.solution.length) {
+      this.checkingFinished = true;
+    }
+  }
+
+
+  generateRandomGame() {
+    this.glasses = [];
+    // add 13 objects to the glasses array with a liquids property which is also an array
+    let numbers = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let usedNumbers: any = [];
+
+    for (let i = 0; i < 13; i++) {
+      let liquids: any[] = [];
+      if (i < 11) {
+        for (let j = 0; j < 4; j++) {
+          let randomNumber = numbers.sort(() => 0.5 - Math.random())[0];
+          usedNumbers.push(randomNumber);
+          let totalUsedCount = usedNumbers.filter((x: any) => x == randomNumber).length
+          if (totalUsedCount == 4) {
+            numbers.splice(numbers.indexOf(randomNumber), 1);
+          }
+          liquids.push(randomNumber);
+        }
+      }
+      this.glasses.push({ liquids: liquids });
+    }
+
+
+ console.log("this.glasses ", this.glasses);
+  }
+
+}

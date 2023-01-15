@@ -1,4 +1,4 @@
-<div class="container" *ngIf="!solving">
+<div class="container" *ngIf="!solving && !checking && !solved">
 
   <div class="glasses">
     <div class="glass" *ngFor="let glass of glasses">
@@ -8,11 +8,13 @@
 
   <div class="buttons">
     <button (click)="solvePuzzle()">Çöz</button>
+    <button (click)="checkSolution()" *ngIf="solved">Çözümü dene</button>
+    <button (click)="generateRandomGame()">Yeni Oyun</button>
   </div>
 
 </div>
 
-<div class="container" *ngIf="solving">
+<div class="container" *ngIf="(solving || solved) && !checking">
 
   <div class="glasses">
     <div class="glass" *ngFor="let glass of solvingGlasses">
@@ -23,5 +25,27 @@
   <div class="buttons">
     <button (click)="doNextMove()">Sonraki Adım</button>
     <button (click)="stopSolving()">Durdur</button>
+    <button (click)="checkSolution()" *ngIf="solved">Çözümü dene</button>
+
+  </div>
+</div>
+
+<div class="container" *ngIf="checking">
+
+  <div class="glasses">
+    <div class="glass" *ngFor="let glass of solvingGlasses">
+      <div class="liquid" *ngFor="let liquid of glass.liquids" [style.background-color]="colors[liquid]"></div>
+    </div>
+  </div>
+
+  <div *ngIf="checkingIndex > 0">
+    From {{checkingFromGlass+1}} to {{checkingToGlass+1}}
+  </div>
+
+  <div class="buttons">
+    <button (click)="doNextCheckingMove()" *ngIf="!waitingForCheckingMove && !checkingFinished">Sonraki Adım</button>
+    <button (click)="stopSolving()">Durdur</button>
+    <button (click)="resetChecking()" *ngIf="checkingIndex > 0">Baştan Başla</button>
+    
   </div>
 </div>
